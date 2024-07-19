@@ -1,5 +1,5 @@
-import RewardRoulette from '../components/RewardRoulette';
+import ProductivitySlots from '../components/ProductivitySlots';
 
 export default function Home() {
-  return <RewardRoulette />;
+  return <ProductivitySlots />;
 }

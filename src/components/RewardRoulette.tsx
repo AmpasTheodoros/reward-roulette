@@ -1,4 +1,6 @@
-import React, { useState, useRef } from 'react';
+"use client";
+
+import React, { useState, useRef, useCallback } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,7 +13,6 @@ interface RouletteNumber {
 interface Task {
   id: number;
   name: string;
-  reward: string;
 }
 
 const ROULETTE_NUMBERS: RouletteNumber[] = [
@@ -30,65 +31,74 @@ const ROULETTE_NUMBERS: RouletteNumber[] = [
   { number: 35, color: 'black' }, { number: 3, color: 'red' }, { number: 26, color: 'black' }
 ];
 
-const RealisticRouletteWheel: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([
-    { id: 1, name: 'Complete project', reward: '15 minutes break' },
-    { id: 2, name: 'Exercise', reward: 'Watch an episode of your favorite show' },
-    { id: 3, name: 'Study for 1 hour', reward: 'Play video games for 30 minutes' },
-    { id: 4, name: 'Meditate', reward: 'Treat yourself to a snack' },
-    { id: 5, name: 'Clean room', reward: '10-minute power nap' },
-  ]);
+const TaskRouletteWheel: React.FC = () => {
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
-  const [reward, setReward] = useState<string | null>(null);
   const wheelRef = useRef<SVGGElement>(null);
   const ballRef = useRef<SVGCircleElement>(null);
   const [newTask, setNewTask] = useState('');
-  const [newReward, setNewReward] = useState('');
 
-  const selectRandomTask = () => {
-    const randomIndex = Math.floor(Math.random() * tasks.length);
-    return tasks[randomIndex];
+  const resetWheel = useCallback(() => {
+    if (wheelRef.current && ballRef.current) {
+      wheelRef.current.style.transition = 'none';
+      wheelRef.current.setAttribute('transform', 'rotate(0)');
+      ballRef.current.style.transition = 'none';
+      ballRef.current.setAttribute('transform', 'rotate(0)');
+    }
+  }, []);
+
+  const forceReflow = (element: SVGGraphicsElement) => {
+    void element.getBBox();
   };
 
   const spinRoulette = () => {
-    if (isSpinning) return;
+    if (isSpinning || tasks.length === 0) return;
 
     setIsSpinning(true);
-    setReward(null);
+    setSelectedTask(null);
 
     const wheel = wheelRef.current;
     const ball = ballRef.current;
     if (!wheel || !ball) return;
+
+    // Reset wheel and ball position
+    resetWheel();
+
+    // Force a reflow to ensure the reset takes effect
+    forceReflow(wheel);
+    forceReflow(ball);
 
     const task = selectRandomTask();
     const wheelRotation = 2000 + Math.random() * 360;
     const ballRotation = wheelRotation + (360 - (Math.random() * 360));
 
     wheel.style.transition = 'transform 8s cubic-bezier(0.25, 0.1, 0.25, 1)';
-    wheel.style.transform = `rotate(${wheelRotation}deg)`;
+    wheel.setAttribute('transform', `rotate(${wheelRotation})`);
 
     ball.style.transition = 'transform 8s cubic-bezier(0.5, 0.1, 0.15, 1)';
-    ball.style.transform = `rotate(${ballRotation}deg)`;
+    ball.setAttribute('transform', `rotate(${ballRotation})`);
 
     setTimeout(() => {
       setSelectedTask(task);
-      setReward(task.reward);
       setIsSpinning(false);
     }, 8000);
   };
 
-  const addCustomTask = () => {
-    if (newTask.trim() && newReward.trim()) {
-      setTasks([...tasks, { id: tasks.length + 1, name: newTask, reward: newReward }]);
-      setNewTask('');
-      setNewReward('');
-    }
+  const selectRandomTask = () => {
+    const randomIndex = Math.floor(Math.random() * tasks.length);
+    return tasks[randomIndex];
   };
 
+  const addCustomTask = () => {
+    if (newTask.trim()) {
+      setTasks([...tasks, { id: tasks.length + 1, name: newTask }]);
+      setNewTask('');
+    }
+  };
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-green-800 p-4">
-      <h1 className="text-4xl font-bold mb-8 text-white">RewardRoulette</h1>
+      <h1 className="text-4xl font-bold mb-8 text-white">Task Roulette</h1>
       <div className="bg-green-900 p-8 rounded-lg shadow-lg w-full max-w-md">
         <div className="relative w-96 h-96 mx-auto mb-8">
           <svg viewBox="0 0 1000 1000" className="w-full h-full">
@@ -106,7 +116,7 @@ const RealisticRouletteWheel: React.FC = () => {
                 <feComposite in2="SourceGraphic" operator="over" />
               </filter>
             </defs>
-            <g ref={wheelRef} transform-origin="center">
+            <g ref={wheelRef} style={{ transformOrigin: "center" }}>
               <circle cx="500" cy="500" r="450" fill="url(#wheelGradient)" stroke="#c5a028" strokeWidth="10" filter="url(#innerShadow)" />
               {ROULETTE_NUMBERS.map((number, index) => {
                 const angle = (index * 360) / ROULETTE_NUMBERS.length;
@@ -146,22 +156,22 @@ const RealisticRouletteWheel: React.FC = () => {
               r="15"
               fill="white"
               filter="url(#innerShadow)"
-              transform-origin="center center"
+              style={{ transformOrigin: "center center" }}
             />
           </svg>
         </div>
         <button
           onClick={spinRoulette}
-          disabled={isSpinning}
+          disabled={isSpinning || tasks.length === 0}
           className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors w-full flex items-center justify-center disabled:bg-yellow-400 mb-4"
         >
           {isSpinning ? 'Spinning...' : 'Spin the Roulette'}
         </button>
-        {reward && (
+        {selectedTask && (
           <Alert className="mb-4 bg-yellow-100 border-yellow-400">
-            <AlertTitle className="text-yellow-800">Congratulations!</AlertTitle>
+            <AlertTitle className="text-yellow-800">Your Task:</AlertTitle>
             <AlertDescription className="text-yellow-700">
-              Your reward for completing "{selectedTask?.name}" is: {reward}
+              {selectedTask.name}
             </AlertDescription>
           </Alert>
         )}
@@ -174,13 +184,6 @@ const RealisticRouletteWheel: React.FC = () => {
             onChange={(e) => setNewTask(e.target.value)}
             className="mb-2"
           />
-          <Input
-            type="text"
-            placeholder="Enter reward"
-            value={newReward}
-            onChange={(e) => setNewReward(e.target.value)}
-            className="mb-2"
-          />
           <Button onClick={addCustomTask} className="w-full">
             Add Task
           </Button>
@@ -189,9 +192,7 @@ const RealisticRouletteWheel: React.FC = () => {
           <h2 className="text-xl font-bold mb-2 text-white">Current Tasks</h2>
           <ul className="list-disc pl-5 text-white">
             {tasks.map((task) => (
-              <li key={task.id}>
-                {task.name} - Reward: {task.reward}
-              </li>
+              <li key={task.id}>{task.name}</li>
             ))}
           </ul>
         </div>
@@ -208,4 +209,4 @@ function polarToCartesian(centerX: number, centerY: number, radius: number, angl
   };
 }
 
-export default RealisticRouletteWheel;
+export default TaskRouletteWheel;
